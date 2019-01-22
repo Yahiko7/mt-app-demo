@@ -49,6 +49,8 @@
 </template>
 
 <script>
+import CryptoJS from "crypto-js";
+import { error } from 'util';
 export default {
   layout: "blank",
   data() {
@@ -62,38 +64,141 @@ export default {
         cpwd: "",
         email: ""
       },
-      rules:{
-        name:[{
-          required: true, type: 'string', message: '请输入昵称', trigger: 'blur',
-        }],
-        email:[{
-          required: true, type: 'email', message: '请输入邮箱', trigger: 'blur',
-        }],
-        pwd:[{
-          required: true, type: 'string', message: '请输入密码', trigger: 'blur',
-        }],
-        cpwd:[{
-          required: true, type: 'string', message: '请输入密码', trigger: 'blur',
-        },{
-          validator: (rule,value,callback) => {
-            if( value === ''){
-              callback(new Error('请再次输入密码'))
-            }else if( value !== this.ruleForm.pwd){
-              callback(new Error('两次输入密码不一致'));
-            }else{
-              callback()
+      rules: {
+        name: [
+          {
+            required: true,
+            type: "string",
+            message: "请输入昵称",
+            trigger: "blur"
+          }
+        ],
+        email: [
+          {
+            required: true,
+            type: "email",
+            message: "请输入邮箱",
+            trigger: "blur"
+          }
+        ],
+        pwd: [
+          {
+            required: true,
+            type: "string",
+            message: "请输入密码",
+            trigger: "blur"
+          }
+        ],
+        cpwd: [
+          {
+            required: true,
+            type: "string",
+            message: "请输入密码",
+            trigger: "blur"
+          },
+          {
+            validator: (rule, value, callback) => {
+              if (value === "") {
+                callback(new Error("请再次输入密码"));
+              } else if (value !== this.ruleForm.pwd) {
+                callback(new Error("两次输入密码不一致"));
+              } else {
+                callback();
+              }
             }
           }
-        }],
-        code:[{
-          required: true, type: 'string', message: '请输入验证码', trigger: 'blur',
-        }]
+        ],
+        code: [
+          {
+            required: true,
+            type: "string",
+            message: "请输入验证码",
+            trigger: "blur"
+          }
+        ]
       }
     };
   },
   methods: {
-    sendMsg() {},
-    register() {}
+    sendMsg() {
+      const self = this;
+      let namePass, emailPass;
+      debugger
+      if (self.timerid) {
+        return false;
+      }
+
+      this.$refs["ruleForm"].validateField("name", valid => {
+        namePass = valid;
+      });
+      self.sendMsg = "";
+      if (namePass) {
+        return false;
+      }
+      this.$refs["ruleForm"].validateField("email", valid => {
+        emailPass = valid;
+      });
+      if (!emailPass && !namePass) {
+        self.$axios
+          .post("/users/verity", {
+            username: encodeURIComponent(self.ruleForm.name),
+            email: self.ruleForm.email
+          })
+          .then(({ status, data }) => {
+            if (status === 200 && data && data.code === 0) {
+              let count = 60;
+              self.statusMsg = `验证码已发送,剩余${count--}秒`;
+              self.timerid = setInterval(function() {
+                self.statusMsg = `验证码已发送,剩余${count--}秒`;
+                if (count === 0) {
+                  clearInterval(self.timerid);
+                }
+              }, 1000);
+            } else {
+              self.statusMsg = data.msg;
+            }
+          });
+      }
+    },
+    register() {
+      let self = this;
+      this.$refs["ruleForm"].validate(valid => {
+        if (valid) {
+          self.$axios
+            .post("/users/signup", {
+              username: encodeURIComponent(self.ruleForm.name),
+              password: CryptoJS.MD5(self.ruleForm.pwd).toString(),
+              email: self.ruleForm.email,
+              code: self.ruleForm.code
+            })
+            .then(({ status, data }) => {
+              if (status === 200) {
+                if(data && data.code === 0){
+                  self.$message({
+                    message: "注册成功",
+                    type: "success"
+                  });
+                  setTimeout(function(){
+                    location.href = '/login'
+                  },1500)
+                }else{
+                  self.error = data.msg
+                }
+              } else {
+                self.error = `服务器出错，错误码:${status}`;
+              }
+              setTimeout(function() {
+                self.error = "";
+              }, 1500);
+            }).catch( error => {
+              self.error = `服务器出错，:${error.toString()}`;
+              setTimeout(function() {
+                self.error = "";
+              }, 1500);
+            });
+        }
+      });
+    }
   }
 };
 </script>

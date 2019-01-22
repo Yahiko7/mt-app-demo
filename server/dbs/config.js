@@ -16,10 +16,12 @@ export default {
       return '2285462590@qq.com'
     },
     get pass(){
-      return ' '
+      return 'srnoktvatodzecdc'
     },
     get code(){
-      return Math.random().toString().slice(2,6).toUpperCase();
+      return () => {
+        return Math.random().toString(16).slice(2,6).toUpperCase()
+      };
     },
     get expire(){
       return () => {

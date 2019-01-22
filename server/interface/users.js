@@ -40,7 +40,7 @@ router.post('/signup', async (ctx) => {
     }
   }
 
-  let user = await User.findOne({
+  let user = await User.find({
     username
   });
   if(user.length){
@@ -51,9 +51,10 @@ router.post('/signup', async (ctx) => {
     return
   }
 
-  let nuser = User.create({username,password,email});
+  let nuser = await User.create({username,password,email});
+  console.log("nuser:",nuser)
   if(nuser){
-    let res = await axios.post('/user/signin',{username, password});
+    let res = await axios.post('/users/signin',{username, password});
     if(res.data && res.data.code === 0){
       ctx.body = {
         code: 0,
@@ -77,7 +78,7 @@ router.post('/signup', async (ctx) => {
 })
 
 
-router.post('/singin', async (ctx, next) => {
+router.post('/signin', async (ctx, next) => {
   return Passport.authenticate('local',function(err,user,info,status){
     if(err){
       ctx.body = {
@@ -112,7 +113,7 @@ router.post('/verity',async (ctx,next) => {
     }
     return false
   }
-
+  
   let transpoter = nodeMailer.createTransport({
     service: 'qq',
     auth: {
@@ -120,21 +121,18 @@ router.post('/verity',async (ctx,next) => {
       pass: Email.smtp.pass
     }
   })
-
   let ko = {
     code : Email.smtp.code(),
     expire: Email.smtp.expire(),
     email: ctx.request.body.email,
     user: ctx.request.body.username
   }
-
   let mailOptions = {
     from: `"认证邮件" <${Email.smtp.user}>`,
     to: ko.email,
     subject: ' 《慕课网高仿美团网全栈实战》注册码',
     html: `您在《慕课网高仿美团网全栈实战》课程中注册，您的邀请码是${ko.code}`
   }
-  
   await transpoter.sendMail(mailOptions, (error,info) => {
     if(error){
       return console.log(error)
@@ -149,7 +147,7 @@ router.post('/verity',async (ctx,next) => {
 })
 
 router.get('/exit',async (ctx, next) => {
-  await ctx.loginout();
+  await ctx.logout();
   if(!ctx.isAuthenticated()){
     ctx.body = {
       code: 0
@@ -164,7 +162,7 @@ router.get('/exit',async (ctx, next) => {
 
 router.get('/getUser',async (ctx) => {
   if(ctx.isAuthenticated()){
-    const {username, email} = ctx.sesstion.passport.user;
+    const {username, email} = ctx.session.passport.user;
     ctx.body = {
       user: username,
       email
